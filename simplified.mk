@@ -16,10 +16,12 @@ endif
 
 LIB1_OUT = $(addprefix $(BUILDDIR)/, $(LIB1))
 LIB1_OBJS = $(LIB1_SRCS:%.c=$(addprefix $(BUILDDIR)/, %.o))
+LIB1_BLOB_OBJS = $(LIB1_BLOBS:%=$(addprefix $(BUILDDIR)/, %.o))
 LIB1_DEPS = $(LIB1_OBJS:%.o=%.d)
 
 BIN1_OUT = $(addprefix $(BUILDDIR)/, $(BIN1))
 BIN1_OBJS = $(BIN1_SRCS:%.c=$(addprefix $(BUILDDIR)/, %.o))
+BIN1_BLOB_OBJS = $(BIN1_BLOBS:%=$(addprefix $(BUILDDIR)/, %.o))
 BIN1_DEPS = $(BIN1_OBJS:%.o=%.d)
 
 TST1_OUT = $(addprefix $(BUILDDIR)/, $(TST1))
@@ -40,6 +42,21 @@ ifneq ($(WASM1_ASSETS),)
 	WASM1_ASSETS_ARGS = --preload-file $(WASM1_ASSETS)
 endif
 
+define LOADER_S
+    .global _@SYM@_start
+_@SYM@_start:
+    .incbin "@FILE@"
+
+    .global _@SYM@_end
+_@SYM@_end:
+    .byte 0
+
+    .global _@SYM@_size
+_@SYM@_size:
+    .int _@SYM@_end - _@SYM@_start
+endef
+export LOADER_S
+
 CFLAGS = -g -I. $(INCLUDE_PATH) -Wall -Wextra
 #LDFLAGS = -linker_flags
 
@@ -48,10 +65,13 @@ $(BUILDDIR)/%.o : %.c
 
 all : directories $(LIB1_OUT) $(BIN1_OUT) $(TST1_OUT) $(WASM1_OUT)
 
-$(LIB1_OUT) : $(LIB1_OBJS)
+$(BIN1_BLOB_OBJS) $(LIB1_BLOB_OBJS) : $(BIN1_BLOBS) $(LIB1_BLOBS)
+	echo "$$LOADER_S" | sed -e "s/@SYM@/stdlib_llth/g" -e "s/@FILE@/$^/" | $(CC) -x assembler-with-cpp -o $@ - -c
+
+$(LIB1_OUT) : $(LIB1_OBJS) $(LIB1_BLOB_OBJS)
 	$(LINK.c) $^ -shared -o $@
 
-$(BIN1_OUT) : $(BIN1_OBJS)
+$(BIN1_OUT) : $(BIN1_OBJS) $(BIN1_BLOB_OBJS)
 	$(LINK.c) $^ $(LIB_PATH) $(LIBS) -o $@
 
 $(TST1_OUT) : $(TST1_OBJS)
@@ -71,8 +91,8 @@ directories :
 	@mkdir -p $(BUILDDIR)
 
 clean :
-	rm -f $(LIB1_OBJS) $(LIB1_DEPS) $(LIB1_OUT) \
-		  $(BIN1_OBJS) $(BIN1_DEPS) $(BIN1_OUT) \
+	rm -f $(LIB1_OBJS) $(LIB1_BLOB_OBJS) $(LIB1_DEPS) $(LIB1_OUT) \
+		  $(BIN1_OBJS) $(BIN1_BLOB_OBJS) $(BIN1_DEPS) $(BIN1_OUT) \
 		  $(TST1_OBJS) $(TST1_DEPS) $(TST1_OUT) \
 		  $(WASM1_HTML) $(WASM1_JS) $(WASM1_DATA) $(WASM1_WASM)
 
