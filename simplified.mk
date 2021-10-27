@@ -66,7 +66,7 @@ $(BUILDDIR)/%.o : %.c
 all : directories $(LIB1_OUT) $(BIN1_OUT) $(TST1_OUT) $(WASM1_OUT)
 
 $(BIN1_BLOB_OBJS) $(LIB1_BLOB_OBJS) : $(BIN1_BLOBS) $(LIB1_BLOBS)
-	echo "$$LOADER_S" | sed -e "s/@SYM@/stdlib_llth/g" -e "s/@FILE@/$^/" | $(CC) -x assembler-with-cpp -o $@ - -c
+	echo "$$LOADER_S" | sed -e "s/@SYM@/$(subst .,_,$^)/g" -e "s/@FILE@/$^/" | $(CC) -x assembler-with-cpp -o $@ - -c
 
 $(LIB1_OUT) : $(LIB1_OBJS) $(LIB1_BLOB_OBJS)
 	$(LINK.c) $^ -shared -o $@
