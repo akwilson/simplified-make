@@ -18,6 +18,7 @@ LIB1_OUT = $(addprefix $(BUILDDIR)/, $(LIB1))
 LIB1_OBJS = $(LIB1_SRCS:%.c=$(addprefix $(BUILDDIR)/, %.o))
 LIB1_BLOB_OBJS = $(LIB1_BLOBS:%=$(addprefix $(BUILDDIR)/, %.o))
 LIB1_DEPS = $(LIB1_OBJS:%.o=%.d)
+LIB_PATH += $(BUILDDIR)
 LIBTOOL = libtool
 
 BIN1_OUT = $(addprefix $(BUILDDIR)/, $(BIN1))
@@ -78,10 +79,10 @@ $(LIB1_OUT).a : $(LIB1_OBJS) $(LIB1_BLOB_OBJS)
 	$(LIBTOOL) $^ -o $@
 
 $(BIN1_OUT) : $(BIN1_OBJS) $(BIN1_BLOB_OBJS)
-	$(LINK.c) $^ $(LIB_PATH) $(LIBS) -o $@
+	$(LINK.c) $^ -L$(LIB_PATH) $(LIBS) -o $@
 
 $(TST1_OUT) : $(TST1_OBJS)
-	$(LINK.c) $^ $(LIB_PATH) $(LIBS) -o $@
+	$(LINK.c) $^ -L$(LIB_PATH) $(LIBS) -o $@
 
 $(WASM1_OUT) : $(WASM1_SRCS)
 	$(WASM_CC) $^ $(WASM_EXTRAS) $(WASM1_ASSETS_ARGS) -o $@
@@ -117,13 +118,13 @@ $(INSTALL_H) : $(HEADERS)
 	install -m 644 $^ $(DESTDIR)$(PREFIX)/include
 
 $(INSTALL_LA) : $(LIB1_OUT).a
-    install -d $(DESTDIR)$(PREFIX)/lib
-    install -m 644 $(LIB1_OUT).a $(DESTDIR)$(PREFIX)/lib
+	install -d $(DESTDIR)$(PREFIX)/lib
+	install -m 644 $(LIB1_OUT).a $(DESTDIR)$(PREFIX)/lib
 
 $(INSTALL_LS) : $(LIB1_OUT).so
-    install -d $(DESTDIR)$(PREFIX)/lib
-    install -m 644 $(LIB1_OUT).so $(DESTDIR)$(PREFIX)/lib
-    @if [ `uname` = "Linux" ]; then echo "*** Library installation complete. You may need to run 'sudo ldconfig' ***"; fi
+	install -d $(DESTDIR)$(PREFIX)/lib
+	install -m 644 $(LIB1_OUT).so $(DESTDIR)$(PREFIX)/lib
+	@if [ `uname` = "Linux" ]; then echo "*** Library installation complete. You may need to run 'sudo ldconfig' ***"; fi
 
 $(INSTALL_B) : $(BIN1_OUT)
 	install -d $(DESTDIR)$(PREFIX)/bin
