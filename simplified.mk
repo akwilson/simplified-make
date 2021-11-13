@@ -14,12 +14,13 @@ ifeq ($(BUILDDIR),)
 	BUILDDIR = build
 endif
 
+UNAME = $(shell uname)
+
 LIB1_OUT = $(addprefix $(BUILDDIR)/, $(LIB1))
 LIB1_OBJS = $(LIB1_SRCS:%.c=$(addprefix $(BUILDDIR)/, %.o))
 LIB1_BLOB_OBJS = $(LIB1_BLOBS:%=$(addprefix $(BUILDDIR)/, %.o))
 LIB1_DEPS = $(LIB1_OBJS:%.o=%.d)
 LIB_PATH += $(BUILDDIR)
-LIBTOOL = libtool
 
 BIN1_OUT = $(addprefix $(BUILDDIR)/, $(BIN1))
 BIN1_OBJS = $(BIN1_SRCS:%.c=$(addprefix $(BUILDDIR)/, %.o))
@@ -76,7 +77,11 @@ $(LIB1_OUT).so : $(LIB1_OBJS) $(LIB1_BLOB_OBJS)
 	$(LINK.c) $^ -shared -o $@
 
 $(LIB1_OUT).a : $(LIB1_OBJS) $(LIB1_BLOB_OBJS)
-	$(LIBTOOL) $^ -o $@
+ifeq ($(UNAME),Linux)
+	ar rcs $@ $^
+else
+	libtool $^ -o $@
+endif
 
 $(BIN1_OUT) : $(BIN1_OBJS) $(BIN1_BLOB_OBJS)
 	$(LINK.c) $^ -L$(LIB_PATH) $(LIBS) -o $@
@@ -107,15 +112,18 @@ tests :
 	@LD_LIBRARY_PATH=$(LIB_PATH) DYLD_LIBRARY_PATH=$(LIB_PATH) $(TST1_OUT)
 
 INSTALL_H = $(HEADERS:%.h=$(addprefix $(DESTDIR)$(PREFIX)/include/, %.h))
+INSTALL_L = $(addprefix $(DESTDIR)$(PREFIX)/lib/, $(LIB1))
 INSTALL_LA = $(addprefix $(DESTDIR)$(PREFIX)/lib/, $(LIB1).a)
 INSTALL_LS = $(addprefix $(DESTDIR)$(PREFIX)/lib/, $(LIB1).so)
 INSTALL_B = $(addprefix $(DESTDIR)$(PREFIX)/bin/, $(BIN1))
 
-install : $(INSTALL_H) $(INSTALL_LA) $(INSTALL_LS) $(INSTALL_B)
+install : $(INSTALL_H) $(INSTALL_L) $(INSTALL_B)
 
 $(INSTALL_H) : $(HEADERS)
 	install -d $(DESTDIR)$(PREFIX)/include
 	install -m 644 $^ $(DESTDIR)$(PREFIX)/include
+
+$(INSTALL_L) : $(INSTALL_LA) $(INSTALL_LS)
 
 $(INSTALL_LA) : $(LIB1_OUT).a
 	install -d $(DESTDIR)$(PREFIX)/lib
@@ -124,7 +132,9 @@ $(INSTALL_LA) : $(LIB1_OUT).a
 $(INSTALL_LS) : $(LIB1_OUT).so
 	install -d $(DESTDIR)$(PREFIX)/lib
 	install -m 644 $(LIB1_OUT).so $(DESTDIR)$(PREFIX)/lib
-	@if [ `uname` = "Linux" ]; then echo "*** Library installation complete. You may need to run 'sudo ldconfig' ***"; fi
+ifeq ($(UNAME),Linux)
+	@echo "*** Library installation complete. You may need to run 'sudo ldconfig' ***"
+endif
 
 $(INSTALL_B) : $(BIN1_OUT)
 	install -d $(DESTDIR)$(PREFIX)/bin
