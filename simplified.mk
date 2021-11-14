@@ -14,13 +14,13 @@ ifeq ($(BUILDDIR),)
 	BUILDDIR = build
 endif
 
-UNAME = $(shell uname)
+UNAME := $(shell uname)
 
 LIB1_OUT = $(addprefix $(BUILDDIR)/, $(LIB1))
 LIB1_OBJS = $(LIB1_SRCS:%.c=$(addprefix $(BUILDDIR)/, %.o))
 LIB1_BLOB_OBJS = $(LIB1_BLOBS:%=$(addprefix $(BUILDDIR)/, %.o))
 LIB1_DEPS = $(LIB1_OBJS:%.o=%.d)
-LIB_PATH += $(BUILDDIR)
+LIB_PATH += -L$(BUILDDIR)
 
 BIN1_OUT = $(addprefix $(BUILDDIR)/, $(BIN1))
 BIN1_OBJS = $(BIN1_SRCS:%.c=$(addprefix $(BUILDDIR)/, %.o))
@@ -60,7 +60,7 @@ _@SYM@_size:
 endef
 export LOADER_S
 
-CFLAGS = -g -I. $(INCLUDE_PATH) -Wall -Wextra
+CFLAGS += -g -I. $(INCLUDE_PATH) -Wall -Wextra
 #LDFLAGS = -linker_flags
 
 $(BUILDDIR)/%.o : %.c
@@ -74,7 +74,11 @@ $(BIN1_BLOB_OBJS) $(LIB1_BLOB_OBJS) : $(BIN1_BLOBS) $(LIB1_BLOBS)
 $(LIB1_OUT) : $(LIB1_OUT).so $(LIB1_OUT).a
 
 $(LIB1_OUT).so : $(LIB1_OBJS) $(LIB1_BLOB_OBJS)
+ifeq ($(UNAME),Linux)
 	$(LINK.c) $^ -shared -o $@
+else
+	$(LINK.c) -Wl,-install_name,@rpath/$@ $^ -shared -o $@
+endif
 
 $(LIB1_OUT).a : $(LIB1_OBJS) $(LIB1_BLOB_OBJS)
 ifeq ($(UNAME),Linux)
@@ -84,10 +88,10 @@ else
 endif
 
 $(BIN1_OUT) : $(BIN1_OBJS) $(BIN1_BLOB_OBJS)
-	$(LINK.c) $^ -L$(LIB_PATH) $(LIBS) -o $@
+	$(LINK.c) $^ $(LIB_PATH) $(LIBS) -o $@
 
 $(TST1_OUT) : $(TST1_OBJS)
-	$(LINK.c) $^ -L$(LIB_PATH) $(LIBS) -o $@
+	$(LINK.c) $^ $(LIB_PATH) $(LIBS) -o $@
 
 $(WASM1_OUT) : $(WASM1_SRCS)
 	$(WASM_CC) $^ $(WASM_EXTRAS) $(WASM1_ASSETS_ARGS) -o $@
